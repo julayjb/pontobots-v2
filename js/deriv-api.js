@@ -35,7 +35,7 @@ const CONFIG = {
   // OAuth
   oauthAuthUrl:     'https://auth.deriv.com/oauth2/auth',
   oauthTokenUrl:    'https://auth.deriv.com/oauth2/token',
-  clientId:         'YOUR_CLIENT_ID',
+  clientId:         '33Vczz8ZK8eQI7cd2xGD5',
   redirectUri:      `${window.location.origin}${_basePath}/callback`,
   scope:            'trade',
   // WebSocket público (dados de mercado sem auth)
@@ -44,8 +44,8 @@ const CONFIG = {
   accountsUrl:      () => `${CONFIG.restBase}/trading/v1/options/accounts`,
   otpUrl:           (accountId) => `${CONFIG.restBase}/trading/v1/options/accounts/${accountId}/otp`,
   bulkPurchaseUrl:  (env /* 'real' | 'demo' */) => `${CONFIG.restBase}/trading/v1/options/contracts/bulk-purchase/${env}`,
-  // Deriv App ID — em apps OAuth, equivale ao client_id (ver docs de Workflows)
-  derivAppId:       'YOUR_CLIENT_ID',
+  // Deriv App ID — OAuth client_id =/= PAT App ID. clientId acima é p/ OAuth; abaixo é p/ PAT.
+  derivAppId:       '32Dt3y03vm6aqwpIR1mpu',
   // Reconexão
   reconnectBaseMs:  1000,
   reconnectMaxMs:   30000,
