@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PontoBots v2 — Callback OAuth</title>
+  <style>
+    body {
+      background: #0a0c10;
+      color: #e6edf3;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      padding: 60px 24px;
+      text-align: center;
+    }
+    .spinner {
+      display: inline-block;
+      width: 40px; height: 40px;
+      border: 3px solid #2a2f3a;
+      border-top-color: #0ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { color: #0ff; font-size: 18px; margin-bottom: 8px; }
+    p { color: #8b949e; font-size: 12px; }
+    .error { color: #ff5f6d; }
+  </style>
+</head>
+<body>
+  <div class="spinner" id="spinner"></div>
+  <h1>⟡ PontoBots v2</h1>
+  <p id="msg">Processando callback OAuth...</p>
+
+  <script type="module">
+    import { handleOAuthCallback } from '../js/deriv-api.js';
+
+    async function processCallback() {
+      const result = await handleOAuthCallback();
+      const msg = document.getElementById('msg');
+      const spinner = document.getElementById('spinner');
+
+      if (result.ok) {
+        msg.textContent = 'Login realizado com sucesso. Redirecionando...';
+        setTimeout(() => {
+          // Volta para a raiz da aplicação (suporta / e /v2/)
+          window.location.href = '../';
+        }, 600);
+      } else {
+        spinner.style.display = 'none';
+        msg.classList.add('error');
+        msg.textContent = 'Falha no login: ' + (result.error || 'erro desconhecido');
+        setTimeout(() => {
+          window.location.href = '../';
+        }, 3000);
+      }
+    }
+
+    processCallback();
+  </script>
+</body>
+</html>

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PontoBots v2 — Plataforma de Trading para Deriv</title>
+  <meta name="description" content="Plataforma web completa de trading manual e automatizado (bots) para a corretora Deriv." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Charting library used by the reference site-modelo.html -->
+  <script src="https://unpkg.com/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <!-- Aviso de risco inicial -->
+  <div id="riskModal" class="modal-overlay" data-show="true">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>⚠️ Aviso de Risco</h2>
+      </div>
+      <div class="modal-body">
+        <p>As opções binárias são instrumentos de alto risco. A maior parte dos traders de varejo perde dinheiro ao operar esses produtos. A PontoBots v2 é uma ferramenta de automação e <strong>não</strong> oferece aconselhamento financeiro. Operar com dinheiro real pode resultar na perda total do capital investido.</p>
+        <ul style="margin:12px 0 0 18px; color:#a0b3d9; font-size:12px; line-height:1.7;">
+          <li>Use inicialmente <strong>conta demo</strong> para validar estratégias.</li>
+          <li>Defina sempre um <strong>stop loss</strong> e respeite o limite diário.</li>
+          <li>Nunca opere com dinheiro que não pode perder.</li>
+          <li>Tokens de acesso ficam salvos apenas neste navegador (localStorage).</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button class="primary" id="riskAcceptBtn">Entendi e aceito</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal genérico -->
+  <div id="genericModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header"><h2 id="genericModalTitle">—</h2></div>
+      <div class="modal-body" id="genericModalBody"></div>
+      <div class="modal-footer" id="genericModalFooter"></div>
+    </div>
+  </div>
+
+  <!-- Container raiz -->
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>⟡ PontoBots <span class="accent">v2</span></h1>
+        <p>trading manual + automatizado para Deriv • websocket direto • gestão financeira • virtual loss</p>
+      </div>
+      <div class="header-right">
+        <div id="accountPill" class="account-pill" data-mode="offline">
+          <span class="dot"></span>
+          <span class="account-label">Desconectado</span>
+        </div>
+        <div id="connStatus" class="conn-status">
+          <span class="conn-dot" data-state="offline"></span>
+          <span class="conn-text">offline</span>
+          <span class="conn-ping" id="connPing"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Banners de alerta global -->
+    <div id="globalBanner" class="global-banner" style="display:none;"></div>
+
+    <!-- Tabs -->
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="dashboard">🏠 Início</button>
+      <button class="tab-btn" data-tab="conexao">🔌 Conexão</button>
+      <button class="tab-btn" data-tab="mercados">🌐 Mercados</button>
+      <button class="tab-btn" data-tab="graficos">📈 Gráficos</button>
+      <button class="tab-btn" data-tab="digitos">🔢 Dígitos</button>
+      <button class="tab-btn" data-tab="bots">🤖 Bots</button>
+      <button class="tab-btn" data-tab="gestao">💰 Gestão</button>
+      <button class="tab-btn" data-tab="virtual">🛡️ Virtual Loss</button>
+      <button class="tab-btn" data-tab="trades">📋 Trades & Logs</button>
+      <button class="tab-btn" data-tab="avancado">⚙️ Avançado</button>
+      <button class="tab-btn" data-tab="config">🔧 Config</button>
+    </nav>
+
+    <!-- ============== 1. DASHBOARD ============== -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="kpis-row" id="kpiRow">
+        <div class="kpi-card"><div class="kpi-label">SALDO</div><div class="kpi-value" id="kpiBalance">—</div><div class="kpi-sub" id="kpiBalanceSub">sem conta ativa</div></div>
+        <div class="kpi-card"><div class="kpi-label">P&L DIA</div><div class="kpi-value" id="kpiPnlDay">—</div><div class="kpi-sub">sessão atual</div></div>
+        <div class="kpi-card"><div class="kpi-label">P&L SEMANA</div><div class="kpi-value" id="kpiPnlWeek">—</div><div class="kpi-sub">últimos 7d</div></div>
+        <div class="kpi-card"><div class="kpi-label">P&L MÊS</div><div class="kpi-value" id="kpiPnlMonth">—</div><div class="kpi-sub">últimos 30d</div></div>
+        <div class="kpi-card"><div class="kpi-label">BOTS ATIVOS</div><div class="kpi-value" id="kpiBots">0</div><div class="kpi-sub">executando agora</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📊 Curva de Equity</div>
+          <div id="equityChart" class="chart-box" style="height:280px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🤖 Bots em Execução</div>
+          <div id="activeBotsList" class="bot-mini-list">
+            <div class="empty-hint">Nenhum bot rodando.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧾 Últimas Operações</div>
+        <div class="table-wrap">
+          <table class="data-table" id="recentTradesTable">
+            <thead>
+              <tr>
+                <th>Hora</th><th>Símbolo</th><th>Contrato</th><th>Stake</th><th>Resultado</th><th>P&L</th><th>Origem</th>
+              </tr>
+            </thead>
+            <tbody><tr class="empty-row"><td colspan="7">Nenhuma operação registrada.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 2. CONEXÃO ============== -->
+    <section id="tab-conexao" class="tab-content">
+      <div class="card">
+        <div class="card-title">🔐 Autenticação</div>
+        <p class="muted">A PontoBots usa <strong>OAuth 2.0 + PKCE</strong> como método principal. O login é feito diretamente com a Deriv; o token nunca passa por um servidor nosso.</p>
+
+        <div class="settings-grid" style="margin-top:12px;">
+          <div class="setting-group">
+            <label>Status da conexão</label>
+            <div id="connStatusDetail" class="status-detail">offline</div>
+          </div>
+          <div class="setting-group">
+            <label>Latência (ping WS)</label>
+            <div id="latencyDetail" class="status-detail">—</div>
+          </div>
+          <div class="setting-group">
+            <label>Conta ativa</label>
+            <div id="activeAccountDetail" class="status-detail">—</div>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <button id="oauthLoginBtn" class="primary">🚀 Login com Deriv (OAuth + PKCE)</button>
+          <button id="logoutBtn" class="secondary" style="border-color:#4a3f5e;">🚪 Esquecer / Logout</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📑 Contas disponíveis</div>
+        <p class="muted">Após o login, selecione a conta ativa. Trocar de conta não exige novo login — apenas um novo OTP é solicitado para reabrir o WS autenticado.</p>
+        <div class="table-wrap">
+          <table class="data-table" id="accountsTable">
+            <thead>
+              <tr><th></th><th>Conta</th><th>Tipo</th><th>Moeda</th><th>Saldo</th><th></th></tr>
+            </thead>
+            <tbody><tr class="empty-row"><td colspan="6">Nenhuma conta carregada.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 3. MERCADOS ============== -->
+    <section id="tab-mercados" class="tab-content">
+      <div class="card">
+        <div class="card-title">🌐 Mercados disponíveis</div>
+        <div class="settings-grid">
+          <div class="setting-group" style="max-width:none; flex:2;">
+            <label>🔎 Buscar</label>
+            <input type="text" id="symbolSearch" placeholder="Ex: Volatility 100, R_100, EURUSD..." />
+          </div>
+          <div class="setting-group">
+            <label>📂 Categoria</label>
+            <select id="symbolCategoryFilter">
+              <option value="">Todas</option>
+              <option value="forex">Forex</option>
+              <option value="synthetic_index">Índices sintéticos</option>
+              <option value="stock_index">Índices de ações</option>
+              <option value="cryptocurrency">Cripto</option>
+              <option value="commodity">Commodities</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>★ Favoritos</label>
+            <select id="symbolFavFilter">
+              <option value="">Todos</option>
+              <option value="fav">Apenas favoritos</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="symbolsTable">
+            <thead>
+              <tr><th></th><th>Símbolo</th><th>Display</th><th>Categoria</th><th>Pip</th><th>Exchange</th><th>Status</th></tr>
+            </thead>
+            <tbody><tr class="empty-row"><td colspan="7">Carregando símbolos...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 4. GRÁFICOS ============== -->
+    <section id="tab-graficos" class="tab-content">
+      <div class="card">
+        <div class="card-title">⚙️ Configuração do gráfico</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Símbolo</label>
+            <select id="chartSymbol"></select>
+          </div>
+          <div class="setting-group">
+            <label>Granularidade</label>
+            <select id="chartGranularity">
+              <option value="0">Ticks (em tempo real)</option>
+              <option value="1">1 segundo</option>
+              <option value="15">15 segundos</option>
+              <option value="30">30 segundos</option>
+              <option value="60" selected>1 minuto</option>
+              <option value="300">5 minutos</option>
+              <option value="900">15 minutos</option>
+              <option value="3600">1 hora</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Nº de velas</label>
+            <input type="number" id="chartCount" value="100" min="10" max="1000" />
+          </div>
+          <div class="setting-group">
+            <label>Estilo</label>
+            <select id="chartStyle">
+              <option value="candlestick">Candlestick</option>
+              <option value="line">Linha</option>
+              <option value="heikin-ashi">Heikin-Ashi</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📈 Gráfico</div>
+          <div id="mainChart" class="chart-box" style="height:420px;"></div>
+          <div class="countdown-row">
+            <span class="muted">Próxima vela:</span>
+            <span id="candleCountdown" class="countdown">—</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎯 Painel de Operação Manual</div>
+
+          <div class="settings-grid">
+            <div class="setting-group">
+              <label>Tipo de contrato</label>
+              <select id="manualContractType">
+                <option value="CALL">CALL (Rise)</option>
+                <option value="PUT">PUT (Fall)</option>
+                <option value="CALL">CALL Higher</option>
+                <option value="PUT">PUT Lower</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label>Duração — tipo</label>
+              <select id="manualDurationType">
+                <option value="ticks">Ticks</option>
+                <option value="seconds">segundos</option>
+                <option value="minutes">minutos</option>
+                <option value="hours">horas</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label>Duração — valor</label>
+              <input type="number" id="manualDurationValue" value="5" min="1" />
+            </div>
+            <div class="setting-group">
+              <label>Stake</label>
+              <input type="number" id="manualStake" value="1.00" step="0.01" min="0.35" />
+            </div>
+            <div class="setting-group">
+              <label>Barreira (offset)</label>
+              <div class="barrier-row">
+                <button class="secondary barrier-btn" data-delta="-0.01">−</button>
+                <input type="text" id="manualBarrier" placeholder="ex: +0.10" />
+                <button class="secondary barrier-btn" data-delta="+0.01">+</button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label>Payout estimado</label>
+              <div id="manualPayout" class="status-detail">—</div>
+            </div>
+          </div>
+
+          <div class="op-buttons">
+            <button id="callBtn" class="primary op-call">▲ CALL</button>
+            <button id="putBtn" class="primary op-put">▼ PUT</button>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="hedgeToggle" />
+            <span>Hedge — disparar CALL e PUT simultaneamente (stakes independentes)</span>
+          </label>
+
+          <div id="manualLog" class="log-box"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 5. DÍGITOS ============== -->
+    <section id="tab-digitos" class="tab-content">
+      <div class="card">
+        <div class="card-title">🔢 Estatística de Dígitos</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Símbolo</label>
+            <select id="digitSymbol"></select>
+          </div>
+          <div class="setting-group">
+            <label>Janela (últimos N ticks)</label>
+            <input type="number" id="digitWindow" value="100" min="10" max="5000" step="10" />
+          </div>
+          <div class="setting-group">
+            <label>Tipo de contrato</label>
+            <select id="digitContractType">
+              <option value="DIGITMATCH">Matches (igual a)</option>
+              <option value="DIGITDIFF">Differs (diferente de)</option>
+              <option value="DIGITOVER">Over (acima de)</option>
+              <option value="DIGITUNDER">Under (abaixo de)</option>
+              <option value="DIGITODD">Odd (ímpar)</option>
+              <option value="DIGITEVEN">Even (par)</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Dígito-alvo</label>
+            <select id="digitTarget">
+              <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+              <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+              <option value="8">8</option><option value="9">9</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Duração (ticks)</label>
+            <input type="number" id="digitDuration" value="1" min="1" max="10" />
+          </div>
+          <div class="setting-group">
+            <label>Stake</label>
+            <input type="number" id="digitStake" value="1.00" step="0.01" min="0.35" />
+          </div>
+        </div>
+
+        <div class="digit-heatmap" id="digitHeatmap"></div>
+
+        <div class="digit-sequence" id="digitSequence"></div>
+
+        <div class="op-buttons">
+          <button id="digitBuyBtn" class="primary">🎯 Comprar contrato</button>
+        </div>
+
+        <div id="digitLog" class="log-box"></div>
+      </div>
+    </section>
+
+    <!-- ============== 6. BOTS ============== -->
+    <section id="tab-bots" class="tab-content">
+      <div class="card">
+        <div class="card-title">🤖 Catálogo de Bots</div>
+        <p class="muted">Cada bot segue uma interface padronizada. Novos bots podem ser adicionados em <code>js/bots-library.js</code> sem alterar o motor ou a UI.</p>
+        <div id="botCatalog" class="bot-catalog"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚀 Configurar & iniciar bot</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Bot</label>
+            <select id="botSelect"></select>
+          </div>
+          <div class="setting-group">
+            <label>Símbolo</label>
+            <select id="botSymbol"></select>
+          </div>
+          <div class="setting-group">
+            <label>Stake inicial</label>
+            <input type="number" id="botStake" value="1.00" step="0.01" min="0.35" />
+          </div>
+          <div class="setting-group">
+            <label>Gestão financeira</label>
+            <select id="botMoneyMgmt">
+              <option value="fixed">Fixo</option>
+              <option value="martingale">Martingale</option>
+              <option value="soros">Soros</option>
+              <option value="fibonacci">Fibonacci</option>
+              <option value="dalembert">D'Alembert</option>
+            </select>
+          </div>
+        </div>
+        <div id="botParamsContainer" class="bot-params-container"></div>
+        <div style="margin-top:14px;">
+          <button id="botStartBtn" class="primary">▶ Iniciar bot</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Painel consolidado</div>
+        <div id="botsRunningPanel" class="bots-running-panel">
+          <div class="empty-hint">Nenhum bot em execução.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 7. GESTÃO FINANCEIRA ============== -->
+    <section id="tab-gestao" class="tab-content">
+      <div class="card">
+        <div class="card-title">💰 Modo de stake</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Modo</label>
+            <select id="mmMode">
+              <option value="fixed">Fixo</option>
+              <option value="martingale">Martingale</option>
+              <option value="soros">Soros</option>
+              <option value="fibonacci">Fibonacci</option>
+              <option value="dalembert">D'Alembert</option>
+            </select>
+          </div>
+          <div class="setting-group" data-mm="martingale">
+            <label>Multiplicador MG</label>
+            <input type="number" id="mmMartMult" value="2.0" step="0.1" min="1.1" />
+          </div>
+          <div class="setting-group" data-mm="martingale">
+            <label>Níveis máx. MG</label>
+            <input type="number" id="mmMartLevels" value="5" min="1" max="10" />
+          </div>
+          <div class="setting-group" data-mm="soros">
+            <label>% reinvestir Soros</label>
+            <input type="number" id="mmSorosPct" value="100" min="0" max="100" />
+          </div>
+          <div class="setting-group" data-mm="soros">
+            <label>Níveis máx. Soros</label>
+            <input type="number" id="mmSorosLevels" value="3" min="1" max="10" />
+          </div>
+          <div class="setting-group" data-mm="fibonacci">
+            <label>Sequência Fibonacci</label>
+            <input type="text" id="mmFiboSeq" value="1,1,2,3,5,8,13" />
+          </div>
+          <div class="setting-group" data-mm="dalembert">
+            <label>Incremento D'Alembert</label>
+            <input type="number" id="mmDalStep" value="1.0" step="0.1" min="0.1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🛡️ Limites & proteção</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Take Profit (valor)</label>
+            <input type="number" id="mmTP" value="10.00" step="0.5" />
+          </div>
+          <div class="setting-group">
+            <label>Stop Loss (valor)</label>
+            <input type="number" id="mmSL" value="5.00" step="0.5" />
+          </div>
+          <div class="setting-group">
+            <label>TP % (sobre banca)</label>
+            <input type="number" id="mmTPpct" value="0" min="0" max="100" />
+          </div>
+          <div class="setting-group">
+            <label>SL % (sobre banca)</label>
+            <input type="number" id="mmSLpct" value="0" min="0" max="100" />
+          </div>
+          <div class="setting-group">
+            <label>Máx. operações / sessão</label>
+            <input type="number" id="mmMaxOps" value="50" min="1" />
+          </div>
+          <div class="setting-group">
+            <label>Máx. perdas consecutivas</label>
+            <input type="number" id="mmMaxLosses" value="5" min="1" />
+          </div>
+          <div class="setting-group">
+            <label>Cool down (segundos)</label>
+            <input type="number" id="mmCooldown" value="60" min="0" />
+          </div>
+          <div class="setting-group">
+            <label>Stake mínimo</label>
+            <input type="number" id="mmMinStake" value="0.35" step="0.01" />
+          </div>
+          <div class="setting-group">
+            <label>Stake máximo</label>
+            <input type="number" id="mmMaxStake" value="100" step="1" />
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <button id="saveGestaoBtn" class="primary">💾 Salvar configurações</button>
+          <button id="resetGestaoBtn" class="secondary">↺ Restaurar padrão</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 8. VIRTUAL LOSS ============== -->
+    <section id="tab-virtual" class="tab-content">
+      <div class="card">
+        <div class="card-title">🛡️ Virtual Loss (VL)</div>
+        <p class="muted">Proteção que opera primeiro em conta demo (virtual) e só migra para a conta real após critério configurado.</p>
+
+        <div class="vl-mode-selector" id="vlModeSelector">
+          <button class="vl-mode-btn active" data-vlmode="off">Desativado</button>
+          <button class="vl-mode-btn" data-vlmode="simple">Simples</button>
+          <button class="vl-mode-btn" data-vlmode="intermarket">Intermercado Inteligente</button>
+        </div>
+
+        <div id="vlParamsSimple" class="vl-params" style="display:none;">
+          <div class="settings-grid">
+            <div class="setting-group">
+              <label>Nº de operações virtuais antes da real</label>
+              <input type="number" id="vlSimpleN" value="3" min="1" max="20" />
+            </div>
+            <div class="setting-group">
+              <label>Critério para entrar na real</label>
+              <select id="vlSimpleCriterion">
+                <option value="after_n">Após N virtuais (independente do resultado)</option>
+                <option value="after_win">Após 1 vitória virtual</option>
+                <option value="after_loss">Após 1 perda virtual</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label>Após operação real — voltar para virtual?</label>
+              <select id="vlSimpleReturn">
+                <option value="yes">Sim, sempre</option>
+                <option value="on_loss">Sim, apenas em perda</option>
+                <option value="no">Não, continuar na real</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="vlParamsInter" class="vl-params" style="display:none;">
+          <div class="settings-grid">
+            <div class="setting-group">
+              <label>Perdas virtuais seguidas → real</label>
+              <input type="number" id="vlInterN" value="2" min="1" max="10" />
+            </div>
+            <div class="setting-group">
+              <label>Se perder na real — voltar p/ virtual?</label>
+              <select id="vlInterReturn">
+                <option value="yes">Sim</option>
+                <option value="no">Não</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label>Máx. entradas reais consecutivas</label>
+              <input type="number" id="vlInterMaxReal" value="2" min="1" max="10" />
+            </div>
+          </div>
+        </div>
+
+        <div class="vl-status-card" id="vlStatusCard">
+          <div class="vl-status-label">Próxima entrada efetiva:</div>
+          <div class="vl-status-value" id="vlNextAccount">DEMO (virtual)</div>
+          <div class="vl-status-detail" id="vlStatusDetail">VL desativado — operações seguem diretamente para a conta ativa.</div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <button id="saveVlBtn" class="primary">💾 Salvar Virtual Loss</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 9. TRADES & LOGS ============== -->
+    <section id="tab-trades" class="tab-content">
+      <div class="card">
+        <div class="card-title">📋 Histórico de Trades</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>De</label>
+            <input type="date" id="tradesFrom" />
+          </div>
+          <div class="setting-group">
+            <label>Até</label>
+            <input type="date" id="tradesTo" />
+          </div>
+          <div class="setting-group">
+            <label>Símbolo</label>
+            <select id="tradesSymbolFilter"><option value="">Todos</option></select>
+          </div>
+          <div class="setting-group">
+            <label>Origem</label>
+            <select id="tradesSourceFilter">
+              <option value="">Todas</option>
+              <option value="manual">Manual</option>
+              <option value="bot">Bot</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Resultado</label>
+            <select id="tradesResultFilter">
+              <option value="">Todos</option>
+              <option value="win">Vitórias</option>
+              <option value="loss">Derrotas</option>
+            </select>
+          </div>
+          <div class="setting-group" style="display:flex; align-items:flex-end;">
+            <button id="exportCsvBtn" class="secondary">⬇ Exportar CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="tradesTable">
+            <thead>
+              <tr><th>Hora</th><th>Símbolo</th><th>Contrato</th><th>Stake</th><th>Payout</th><th>Resultado</th><th>P&L</th><th>Conta</th><th>Origem</th></tr>
+            </thead>
+            <tbody><tr class="empty-row"><td colspan="9">Nenhum trade registrado.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📟 Console de Logs</div>
+        <div class="log-toolbar">
+          <label class="checkbox-row"><input type="checkbox" id="logFilterInfo" checked /> <span>info</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="logFilterWarn" checked /> <span>aviso</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="logFilterError" checked /> <span>erro</span></label>
+          <button id="clearLogsBtn" class="secondary" style="margin-left:auto;">Limpar</button>
+        </div>
+        <div id="logsConsole" class="log-box" style="max-height:340px;"></div>
+      </div>
+    </section>
+
+    <!-- ============== 10. AVANÇADO ============== -->
+    <section id="tab-avancado" class="tab-content">
+      <div class="card">
+        <div class="card-title">⚙️ Parâmetros crus de contrato</div>
+        <p class="muted">Para usuários avançados — preencha diretamente os campos da API Deriv.</p>
+        <div class="settings-grid">
+          <div class="setting-group"><label>contract_type</label><input type="text" id="advContractType" value="CALL" /></div>
+          <div class="setting-group"><label>underlying_symbol</label><input type="text" id="advSymbol" value="R_100" /></div>
+          <div class="setting-group"><label>currency</label><input type="text" id="advCurrency" value="USD" /></div>
+          <div class="setting-group"><label>amount</label><input type="number" id="advAmount" value="1.00" step="0.01" /></div>
+          <div class="setting-group"><label>basis</label>
+            <select id="advBasis"><option value="stake">stake</option><option value="payout">payout</option></select>
+          </div>
+          <div class="setting-group"><label>duration</label><input type="number" id="advDuration" value="5" /></div>
+          <div class="setting-group"><label>duration_unit</label>
+            <select id="advDurationUnit"><option value="t">t (ticks)</option><option value="s">s (segundos)</option><option value="m">m (minutos)</option><option value="h">h (horas)</option></select>
+          </div>
+          <div class="setting-group"><label>barrier</label><input type="text" id="advBarrier" placeholder="ex: +0.10" /></div>
+        </div>
+        <div style="margin-top:14px;">
+          <button id="advProposalBtn" class="secondary">📡 Simular proposal</button>
+          <button id="advBuyBtn" class="primary"> comprar contrato (conta ativa)</button>
+        </div>
+        <div id="advResult" class="log-box" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📦 Compra em lote via PAT</div>
+        <p class="muted">Replica a mesma entrada em várias contas simultaneamente. Cada conta deve ter um PAT (Personal Access Token) com escopo <code>trade</code> gerado na própria Deriv. Esta função é independente do login OAuth.</p>
+        <div class="settings-grid">
+          <div class="setting-group"><label>Ambiente</label>
+            <select id="bulkEnv"><option value="demo">Demo</option><option value="real">Real</option></select>
+          </div>
+          <div class="setting-group"><label>contract_type</label>
+            <select id="bulkContractType"><option value="CALL">CALL</option><option value="PUT">PUT</option></select>
+          </div>
+          <div class="setting-group"><label>underlying_symbol</label><input type="text" id="bulkSymbol" value="R_100" /></div>
+          <div class="setting-group"><label>currency</label><input type="text" id="bulkCurrency" value="USD" /></div>
+          <div class="setting-group"><label>amount</label><input type="number" id="bulkAmount" value="1.00" step="0.01" /></div>
+          <div class="setting-group"><label>basis</label>
+            <select id="bulkBasis"><option value="stake">stake</option><option value="payout">payout</option></select>
+          </div>
+          <div class="setting-group"><label>duration</label><input type="number" id="bulkDuration" value="5" /></div>
+          <div class="setting-group"><label>duration_unit</label>
+            <select id="bulkDurationUnit"><option value="t">t</option><option value="s">s</option><option value="m">m</option><option value="h">h</option></select>
+          </div>
+        </div>
+
+        <div class="card-title" style="margin-top:14px;">Contas (PAT + account_id)</div>
+        <div class="table-wrap">
+          <table class="data-table" id="bulkAccountsTable">
+            <thead><tr><th>account_id</th><th>PAT</th><th></th></tr></thead>
+            <tbody><tr class="empty-row"><td colspan="3">Nenhuma conta cadastrada.</td></tr></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="bulkAddRowBtn" class="secondary">➕ Adicionar conta</button>
+          <button id="bulkPurchaseBtn" class="primary">📦 Disparar compra em lote</button>
+        </div>
+        <div id="bulkResult" class="log-box" style="margin-top:14px;"></div>
+      </div>
+    </section>
+
+    <!-- ============== 11. CONFIG ============== -->
+    <section id="tab-config" class="tab-content">
+      <div class="card">
+        <div class="card-title">🔧 Preferências</div>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label>Idioma</label>
+            <select id="cfgLang">
+              <option value="pt-BR">Português (Brasil)</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Tema</label>
+            <select id="cfgTheme">
+              <option value="dark">Escuro (padrão)</option>
+              <option value="midnight">Meia-noite</option>
+              <option value="cyber">Cyber</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card-title" style="margin-top:18px;">🔊 Sons de alerta</div>
+        <div class="settings-grid">
+          <label class="checkbox-row"><input type="checkbox" id="cfgSoundEntry" checked /> <span>Entrada realizada</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="cfgSoundWin" checked /> <span>Vitória</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="cfgSoundLoss" checked /> <span>Derrota</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="cfgSoundStop" checked /> <span>Stop atingido</span></label>
+          <label class="checkbox-row"><input type="checkbox" id="cfgSoundDisconnect" checked /> <span>Desconexão</span></label>
+        </div>
+
+        <div class="card-title" style="margin-top:18px;">🔔 Notificações</div>
+        <label class="checkbox-row"><input type="checkbox" id="cfgBrowserNotif" /> <span>Ativar notificações do navegador</span></label>
+
+        <div class="card-title" style="margin-top:18px;">💾 Presets</div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button id="cfgExportBtn" class="secondary">⬇ Exportar presets (JSON)</button>
+          <button id="cfgImportBtn" class="secondary">⬆ Importar presets (JSON)</button>
+          <input type="file" id="cfgImportFile" accept="application/json" style="display:none;" />
+        </div>
+
+        <div style="margin-top:24px;">
+          <button id="cfgSaveBtn" class="primary">💾 Salvar preferências</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
