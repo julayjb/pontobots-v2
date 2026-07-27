@@ -586,12 +586,12 @@ export async function subscribeTicks(symbol, onTick) {
 }
 
 /** Subscrever candles em streaming */
-export async function subscribeCandles(symbol, granularity, onCandle) {
+export async function subscribeCandles(symbol, granularity, onCandle, count = 100) {
   const resp = await sendPublic({
     ticks_history: symbol,
     style: 'candles',
     granularity,
-    count: 100,
+    count,
     subscribe: 1,
   });
   if (resp.subscription) {
@@ -601,6 +601,8 @@ export async function subscribeCandles(symbol, granularity, onCandle) {
     });
     return { unsubscribe: async () => { off(); await forget(subId); }, subId, initialCandles: resp.candles || [] };
   }
+  // Mesmo sem subscription ativa, retorna velas iniciais se houver
+  return { unsubscribe: async () => {}, subId: null, initialCandles: resp.candles || [] };
 }
 
 /**

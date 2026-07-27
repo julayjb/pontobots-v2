@@ -319,7 +319,7 @@ function renderSymbols() {
 // Gráficos tab
 // ──────────────────────────────────────────────────────────────
 let chartCountdownTimer = null;
-let currentTickSub = null;
+let chartSub = null; // subscription ativa (ticks ou candles)
 
 async function refreshChartTab() {
   const symbols = store.get('symbols') || [];
@@ -339,25 +339,43 @@ async function loadChart() {
   const count = parseInt($('#chartCount').value, 10);
   const style = $('#chartStyle').value;
 
+  // Limpa subscrição anterior e countdown
   if (chartCountdownTimer) clearInterval(chartCountdownTimer);
-  if (currentTickSub) { try { await currentTickSub.unsubscribe(); } catch(e) {} currentTickSub = null; }
+  if (chartSub) { try { await chartSub.unsubscribe(); } catch(e) {} chartSub = null; }
 
   try {
     if (granularity === 0) {
-      // Ticks
+      // ── Modo ticks ──
       const resp = await DerivAPI.fetchTicksHistory(symbol, { count, style: 'ticks' });
       if (resp.history) {
         const ticks = resp.history.times.map((t, i) => ({ epoch: t, quote: resp.history.prices[i] }));
         Charts.setTickData('mainChart', ticks);
       }
-      currentTickSub = await DerivAPI.subscribeTicks(symbol, (tick) => {
+      chartSub = await DerivAPI.subscribeTicks(symbol, (tick) => {
         Charts.updateLastCandle('mainChart', { epoch: tick.epoch, open: tick.quote, high: tick.quote, low: tick.quote, close: tick.quote });
       });
     } else {
-      const resp = await DerivAPI.fetchTicksHistory(symbol, { count, style: 'candles', granularity });
-      if (resp.candles) {
-        Charts.setData('mainChart', resp.candles, { style });
+      // ── Modo candles com streaming ao vivo ──
+      chartSub = await DerivAPI.subscribeCandles(symbol, granularity, (ohlc) => {
+        // OHLC streaming: atualiza a última vela em tempo real
+        Charts.updateLastCandle('mainChart', {
+          epoch: ohlc.epoch,
+          open: parseFloat(ohlc.open),
+          high: parseFloat(ohlc.high),
+          low: parseFloat(ohlc.low),
+          close: parseFloat(ohlc.close),
+        });
+      }, count);
+
+      if (chartSub.initialCandles && chartSub.initialCandles.length) {
+        Charts.setData('mainChart', chartSub.initialCandles, { style });
+        Charts.updateLastCandle('mainChart', chartSub.initialCandles[chartSub.initialCandles.length - 1]);
+      } else {
+        // Fallback: busca dados sem subscription
+        const resp = await DerivAPI.fetchTicksHistory(symbol, { count, style: 'candles', granularity });
+        if (resp.candles) Charts.setData('mainChart', resp.candles, { style });
       }
+
       chartCountdownTimer = Charts.startCandleCountdown('candleCountdown', granularity);
     }
   } catch (e) {
