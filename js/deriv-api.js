@@ -614,7 +614,9 @@ export async function subscribeCandles(symbol, granularity, onCandle, count = 10
 export async function proposal(params) {
   const { symbol, ...rest } = params;
   if (symbol && !rest.underlying_symbol) rest.underlying_symbol = symbol;
-  return sendPublic({ proposal: 1, ...rest });
+  // Proposal PRECISA usar o mesmo WS do buy (ambos autenticados),
+  // senão o erro InvalidContractProposal ocorre
+  return sendAuth({ proposal: 1, ...rest });
 }
 
 /** Comprar contrato (via WS autenticado) */
