@@ -592,6 +592,7 @@ export async function subscribeCandles(symbol, granularity, onCandle, count = 10
     style: 'candles',
     granularity,
     count,
+    end: 'latest',
     subscribe: 1,
   });
   if (resp.subscription) {
