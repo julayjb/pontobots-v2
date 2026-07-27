@@ -600,10 +600,10 @@ export async function subscribeCandles(symbol, granularity, onCandle, count = 10
     const off = on('ohlc', (msg) => {
       if (msg.ohlc && msg.ohlc.symbol === symbol) onCandle(msg.ohlc);
     });
-    return { unsubscribe: async () => { off(); await forget(subId); }, subId, initialCandles: resp.candles || [] };
+    return { unsubscribe: async () => { off(); await forget(subId); }, subId, initialCandles: resp.candles || [], pipSize: resp.pip_size ?? 2 };
   }
   // Mesmo sem subscription ativa, retorna velas iniciais se houver
-  return { unsubscribe: async () => {}, subId: null, initialCandles: resp.candles || [] };
+  return { unsubscribe: async () => {}, subId: null, initialCandles: resp.candles || [], pipSize: resp.pip_size ?? 2 };
 }
 
 /**

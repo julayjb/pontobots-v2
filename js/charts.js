@@ -116,6 +116,7 @@ export function createCandleChart(containerId, { style = 'candlestick' } = {}) {
     chart,
     series,
     style,
+    pipSize: null,  // setado via setPricePrecision
     markers: [],
     overlaySeries: null,
     resizeObs,
@@ -133,6 +134,21 @@ export function destroyChart(containerId) {
     inst.chart.remove();
   } catch(e) {}
   chartInstances.delete(containerId);
+}
+
+/** Aplica precisão decimal (pip_size) à série do gráfico */
+export function setPricePrecision(containerId, pipSize) {
+  const inst = chartInstances.get(containerId);
+  if (!inst || pipSize == null) return;
+  inst.pipSize = pipSize;
+  const minMove = pipSize > 0 ? Math.pow(10, -pipSize) : 1;
+  inst.series.applyOptions({
+    priceFormat: {
+      type: 'price',
+      precision: pipSize,
+      minMove,
+    },
+  });
 }
 
 export function setData(containerId, candles, { style } = {}) {

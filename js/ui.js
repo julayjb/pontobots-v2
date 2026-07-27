@@ -371,13 +371,19 @@ async function loadChart() {
         });
       }, count);
 
+      // Aplica precisão do pip_size no gráfico
+      if (chartSub.pipSize) Charts.setPricePrecision('mainChart', chartSub.pipSize);
+
       if (chartSub.initialCandles && chartSub.initialCandles.length) {
         Charts.setData('mainChart', chartSub.initialCandles, { style });
         Charts.updateLastCandle('mainChart', chartSub.initialCandles[chartSub.initialCandles.length - 1]);
       } else {
         // Fallback: busca dados sem subscription
         const resp = await DerivAPI.fetchTicksHistory(symbol, { count, style: 'candles', granularity });
-        if (resp.candles) Charts.setData('mainChart', resp.candles, { style });
+        if (resp.candles) {
+          Charts.setData('mainChart', resp.candles, { style });
+          if (resp.pip_size) Charts.setPricePrecision('mainChart', resp.pip_size);
+        }
       }
 
       chartCountdownTimer = Charts.startCandleCountdown('candleCountdown', granularity);
