@@ -357,9 +357,13 @@ async function loadChart() {
     } else {
       // ── Modo candles com streaming ao vivo ──
       chartSub = await DerivAPI.subscribeCandles(symbol, granularity, (ohlc) => {
-        // OHLC streaming: atualiza a última vela em tempo real
+        // OHLC streaming: usa open_time para identificar a vela (fixo),
+        // não o epoch que muda a cada tick — senão cada tick vira uma "nova vela"
+        const candleTime = ohlc.open_time
+          ? ohlc.open_time
+          : Math.floor((ohlc.epoch || ohlc.close_time) / granularity) * granularity;
         Charts.updateLastCandle('mainChart', {
-          epoch: ohlc.epoch,
+          epoch: candleTime,
           open: parseFloat(ohlc.open),
           high: parseFloat(ohlc.high),
           low: parseFloat(ohlc.low),
