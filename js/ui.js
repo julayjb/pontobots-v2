@@ -505,20 +505,33 @@ async function loadDigitStats() {
   if (digitSub) { try { await digitSub.unsubscribe(); } catch(e) {} digitSub = null; }
   const symbol = $('#digitSymbol').value;
   const window = parseInt($('#digitWindow').value, 10);
+
+  // Descobre pip_size (casas decimais) do símbolo para extrair dígito correto
+  const symbolData = (store.get('symbols') || []).find(s => s.symbol === symbol);
+  const pipSize = symbolData?.pip ?? 2;
+
+  // Helper: extrai último dígito respeitando casas decimais
+  const lastDigit = (value) => {
+    const str = typeof value === 'number' && pipSize != null
+      ? value.toFixed(pipSize)
+      : String(value);
+    return parseInt(str.slice(-1), 10);
+  };
+
   try {
     const resp = await DerivAPI.fetchTicksHistory(symbol, { count: window, style: 'ticks' });
     if (resp.history) {
       digitCounters = new Array(10).fill(0);
       digitSequence = [];
       for (let i = 0; i < resp.history.prices.length; i++) {
-        const d = parseInt(String(resp.history.prices[i]).slice(-1), 10);
+        const d = lastDigit(resp.history.prices[i]);
         if (!isNaN(d)) { digitCounters[d]++; digitSequence.push(d); }
       }
       renderDigitHeatmap();
       renderDigitSequence();
     }
     digitSub = await DerivAPI.subscribeTicks(symbol, (tick) => {
-      const d = parseInt(String(tick.quote).slice(-1), 10);
+      const d = lastDigit(tick.quote);
       if (isNaN(d)) return;
       digitCounters[d]++;
       digitSequence.push(d);
