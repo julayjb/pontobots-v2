@@ -9,7 +9,8 @@ const STORAGE_KEY = 'pontobots_v2_state_v1';
 const defaultState = {
   // Sessão
   session: {
-    accessToken: null,    // OAuth Bearer token
+    accessToken: null,    // OAuth Bearer token ou PAT
+    authMethod: null,     // 'oauth' | 'pat' | null
     tokenType: 'Bearer',
     expiresAt: 0,
     accounts: [],         // [{ account_id, currency, balance, type: 'demo'|'real', isVirtual }]

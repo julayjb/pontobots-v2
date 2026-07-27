@@ -196,12 +196,45 @@ export async function handleOAuthCallback() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// 1B. Conexão via PAT Token (alternativa ao OAuth)
+// O PAT funciona nos mesmos endpoints REST: Authorization: Bearer <PAT> + Deriv-App-ID
+// ──────────────────────────────────────────────────────────────
+export async function connectWithPat(pat) {
+  if (!pat || pat.trim().length < 10) {
+    logError('PAT inválido — token muito curto.');
+    return { ok: false, error: 'token_curto' };
+  }
+
+  logInfo('Validando PAT...');
+  const trimmed = pat.trim();
+
+  // Armazena o PAT como accessToken na sessão
+  store.setSession({
+    accessToken: trimmed,
+    expiresAt: Infinity, // PATs não expiram (revogação manual)
+    accounts: [],
+  });
+  store.set('session.authMethod', 'pat');
+
+  // Testa o token listando contas
+  try {
+    const accounts = await listAccounts();
+    logInfo(`✅ PAT válido — ${accounts.length} conta(s) encontrada(s).`);
+    return { ok: true, accounts };
+  } catch (e) {
+    logError('Falha ao conectar com PAT: ' + e.message);
+    // Rollback: limpa o token inválido
+    store.clearSession();
+    return { ok: false, error: e.message };
+  }
+}
+// ──────────────────────────────────────────────────────────────
 // 2. REST helpers (Bearer + Deriv-App-ID)
 // TODOS os REST autenticados exigem ambos os headers (docs de Workflows).
 // ──────────────────────────────────────────────────────────────
 async function authedFetch(path, options = {}) {
   const token = store.get('session.accessToken');
-  if (!token) throw new Error('Sem access_token. Faça login OAuth primeiro.');
+  if (!token) throw new Error('Sem access_token. Faça login OAuth ou conecte via PAT primeiro.');
   const headers = {
     'Authorization': `Bearer ${token}`,
     'Deriv-App-ID':  CONFIG.derivAppId,

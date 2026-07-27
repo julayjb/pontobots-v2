@@ -147,6 +147,21 @@
         </div>
       </div>
 
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">🔑 Autenticação via PAT Token</div>
+        <p class="muted">Alternativa ao OAuth: gere um <strong>Personal Access Token (PAT)</strong> em <a href="https://app.deriv.com/account/api-token" target="_blank" rel="noopener">app.deriv.com</a> → Configurações → Token de API e cole abaixo. O token nunca é enviado para nenhum servidor — fica salvo apenas neste navegador.</p>
+        <div class="settings-grid" style="margin-top:12px;">
+          <div class="setting-group" style="max-width:none; flex:2;">
+            <label>PAT Token</label>
+            <input type="password" id="patTokenInput" placeholder="Cole seu PAT aqui..." />
+          </div>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="patConnectBtn" class="primary">🔑 Conectar com PAT</button>
+          <span id="patStatus" class="status-detail" style="font-size:12px;"></span>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">📑 Contas disponíveis</div>
         <p class="muted">Após o login, selecione a conta ativa. Trocar de conta não exige novo login — apenas um novo OTP é solicitado para reabrir o WS autenticado.</p>

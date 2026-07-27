@@ -159,7 +159,8 @@ function refreshHeader() {
   connPing.textContent = conn.latencyMs ? `${conn.latencyMs}ms` : '';
 
   // Conexão tab
-  $('#connStatusDetail').textContent = pubState;
+  const authMtd = session.authMethod ? ` (${session.authMethod === 'pat' ? 'PAT' : 'OAuth'})` : '';
+  $('#connStatusDetail').textContent = pubState + authMtd;
   $('#latencyDetail').textContent = conn.latencyMs ? `${conn.latencyMs} ms` : '—';
   const activeAcc = session.accounts.find(a => a.account_id === session.activeAccountId);
   $('#activeAccountDetail').textContent = activeAcc
@@ -172,6 +173,38 @@ function refreshHeader() {
 // ──────────────────────────────────────────────────────────────
 function initConexaoTab() {
   $('#oauthLoginBtn').addEventListener('click', () => DerivAPI.startOAuthLogin());
+
+  // ── PAT Token ──
+  const patInput = $('#patTokenInput');
+  const patStatus = $('#patStatus');
+
+  function setPatStatus(msg, type = '') {
+    patStatus.textContent = msg;
+    patStatus.style.color = type === 'error' ? '#ff5f6d' : type === 'ok' ? '#00c850' : '#8b949e';
+  }
+
+  $('#patConnectBtn').addEventListener('click', async () => {
+    const pat = patInput.value.trim();
+    if (!pat) { setPatStatus('Informe um PAT.', 'error'); return; }
+
+    setPatStatus('Validando...');
+    $('#patConnectBtn').disabled = true;
+
+    const result = await DerivAPI.connectWithPat(pat);
+
+    if (result.ok) {
+      setPatStatus(`✅ Conectado — ${result.accounts.length} conta(s) encontrada(s).`, 'ok');
+      patInput.value = ''; // limpa o campo por segurança
+      refreshHeader();
+      refreshAccounts();
+      // Conecta WS público se ainda não estiver conectado
+      DerivAPI.connectPublicWs();
+    } else {
+      setPatStatus(`❌ Falha: ${result.error}`, 'error');
+    }
+
+    $('#patConnectBtn').disabled = false;
+  });
 
   $('#logoutBtn').addEventListener('click', async () => {
     const ok = await confirmDialog({
@@ -195,7 +228,7 @@ async function refreshAccounts() {
   const tbody = $('#accountsTable tbody');
   const accounts = store.get('session.accounts') || [];
   if (!accounts.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhuma conta carregada. Faça login OAuth.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhuma conta carregada. Faça login OAuth ou conecte via PAT.</td></tr>';
     return;
   }
   const active = store.get('session.activeAccountId');
